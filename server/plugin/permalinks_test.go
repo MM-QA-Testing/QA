@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v41/github"
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -48,7 +49,34 @@ func TestGetReplacements(t *testing.T) {
 					},
 				},
 			},
-		}, {
+		},
+		{
+			name:            "basic link with relative path",
+			input:           "start https://github.com/mattermost/mattermost-server/blob/cbb25838a61872b624ac512556d7bc932486a64c/../../../authentication.go#L15-L22 lorem ipsum",
+			numReplacements: 1,
+			replacements: []replacement{
+				{
+					index: 6,
+					word:  "https://github.com/mattermost/mattermost-server/blob/cbb25838a61872b624ac512556d7bc932486a64c/../../../authentication.go#L15-L22",
+					permalinkInfo: struct {
+						haswww string
+						commit string
+						user   string
+						repo   string
+						path   string
+						line   string
+					}{
+						haswww: "",
+						commit: "cbb25838a61872b624ac512556d7bc932486a64c",
+						line:   "L15-L22",
+						path:   "authentication.go",
+						user:   "mattermost",
+						repo:   "mattermost-server",
+					},
+				},
+			},
+		},
+		{
 			name:            "duplicate expansions",
 			input:           "start https://github.com/mattermost/mattermost-server/blob/cbb25838a61872b624ac512556d7bc932486a64c/app/authentication.go#L15-L22 lorem ipsum https://github.com/mattermost/mattermost-server/blob/cbb25838a61872b624ac512556d7bc932486a64c/app/authentication.go#L15-L22 lorem ipsum",
 			numReplacements: 2,
@@ -243,9 +271,10 @@ func TestGetReplacements(t *testing.T) {
 func TestMakeReplacements(t *testing.T) {
 	p := NewPlugin()
 	mockPluginAPI := &plugintest.API{}
-	mockPluginAPI.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	mockPluginAPI.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	mockPluginAPI.On("LogWarn", mock.Anything, mock.Anything)
 	p.SetAPI(mockPluginAPI)
+	p.client = pluginapi.NewClient(p.API, p.Driver)
 
 	tcs := []struct {
 		name         string
@@ -412,8 +441,8 @@ func TestMakeReplacements(t *testing.T) {
 		})
 	}
 
-	mockPluginAPI.AssertCalled(t, "LogError", "Bad git commit hash in permalink", "error", "encoding/hex: invalid byte: U+0068 'h'", "hash", "badhash")
-	mockPluginAPI.AssertCalled(t, "LogError", "Error while fetching file contents", "error", "unmarshalling failed for both file and directory content: unexpected end of JSON input and unexpected end of JSON input", "path", "path/file.go")
+	mockPluginAPI.AssertCalled(t, "LogWarn", "Bad git commit hash in permalink", "error", "encoding/hex: invalid byte: U+0068 'h'", "hash", "badhash")
+	mockPluginAPI.AssertCalled(t, "LogWarn", "Error while fetching file contents", "error", "unmarshalling failed for both file and directory content: unexpected end of JSON input and unexpected end of JSON input", "path", "path/file.go")
 }
 
 const (

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	pluginapi "github.com/mattermost/mattermost-plugin-api"
 	"github.com/mattermost/mattermost-server/v6/plugin"
 	"github.com/mattermost/mattermost-server/v6/plugin/plugintest"
 	"github.com/stretchr/testify/mock"
@@ -30,12 +31,13 @@ func TestWithRecovery(t *testing.T) {
 
 	p := NewPlugin()
 	api := &plugintest.API{}
-	api.On("LogError",
+	api.On("LogWarn",
 		"Recovered from a panic",
 		"url", "http://random",
 		"error", "bad handler",
 		"stack", mock.Anything)
 	p.SetAPI(api)
+	p.client = pluginapi.NewClient(p.API, p.Driver)
 
 	ph := panicHandler{}
 	handler := p.withRecovery(ph)
